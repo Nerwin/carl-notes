@@ -1,0 +1,70 @@
+{
+    "root": true,
+    "parser": "@typescript-eslint/parser",
+    "parserOptions": {
+        "ecmaVersion": 2020,
+        "sourceType": "module"
+    },
+    "plugins": [
+        "@typescript-eslint"
+    ],
+    "extends": [
+        "plugin:@typescript-eslint/eslint-recommended",
+        "plugin:@typescript-eslint/recommended", // Uses the recommended rules from the @typescript-eslint/eslint-plugin
+        "prettier/@typescript-eslint", // Uses eslint-config-prettier to disable ESLint rules from @typescript-eslint/eslint-plugin that would conflict with prettier
+        "prettier"
+    ],
+    "rules": {
+        "@typescript-eslint/no-non-null-assertion": "off",
+        "@typescript-eslint/ban-ts-ignore": "off",
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/interface-name-prefix": "off",
+        "@typescript-eslint/explicit-function-return-type": "off",
+        "@typescript-eslint/no-unused-vars": "off",
+        "@typescript-eslint/no-inferrable-types": [
+            "warn",
+            {
+                "ignoreParameters": true
+            }
+        ],
+        "no-multi-spaces": [
+            "error",
+            {
+                "exceptions": {
+                    "BinaryExpression": true,
+                    "VariableDeclarator": true,
+                    "ImportDeclaration": true
+                }
+            }
+        ],
+        "max-len": [
+            "error",
+            {
+                "code": 140,
+                "ignoreUrls": true,
+                "ignoreComments": true,
+                "ignoreTrailingComments": true
+            }
+        ],
+        "space-before-function-paren": [
+            "error",
+            {
+                "asyncArrow": "always",
+                "named": "never",
+                "anonymous": "never"
+            }
+        ],
+        "no-mixed-spaces-and-tabs": [
+            "error",
+            "smart-tabs"
+        ],
+        "indent": [
+            "error",
+            2
+        ],
+        "quotes": [
+            "error",
+            "single"
+        ]
+    }
+}

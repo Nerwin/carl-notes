@@ -1,0 +1,198 @@
+{
+	"name": "carl-notes",
+	"displayName": "carl",
+	"description": "Carl is a note extension for VSCode helping you to keep notes, reminders, snippets or anything you need during development. Right in your editor",
+	"version": "0.0.1",
+	"publisher": "nerwin",
+	"license": "MIT",
+	"author": {
+		"name": "Nerwin",
+		"url": "https://github.com/nerwin"
+	},
+	"keywords": [
+		"notes",
+		"carl"
+	],
+	"engines": {
+		"vscode": "^1.49.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"activationEvents": [
+		"onView:cnotes",
+		"onCommand:cnotes.deleteNote",
+		"onCommand:cnotes.listNotes",
+		"onCommand:cnotes.newNote",
+		"onCommand:cnotes.refreshNotes",
+		"onCommand:cnotes.renameNote",
+		"onCommand:cnotes.setupNotes"
+	],
+	"main": "./out/extension",
+	"contributes": {
+		"configuration": {
+			"type": "object",
+			"title": "Configuration",
+			"properties": {
+				"cnotes.notesLocations": {
+					"type": "array",
+					"default": [],
+					"description": "Storage locations for notes."
+				}
+			}
+		},
+		"commands": [
+			{
+				"command": "cnotes.deleteNote",
+				"title": "Delete Note",
+				"icon": {
+					"light": "resources/light/delete.svg",
+					"dark": "resources/dark/delete.svg"
+				}
+			},
+			{
+				"command": "cnotes.listNotes",
+				"title": "List Notes",
+				"category": "Carl Notes"
+			},
+			{
+				"command": "cnotes.newNote",
+				"title": "New Note",
+				"category": "Carl Notes",
+				"icon": {
+					"light": "resources/light/add.svg",
+					"dark": "resources/dark/add.svg"
+				}
+			},
+			{
+				"command": "cnotes.refreshNotes",
+				"title": "Refresh Notes",
+				"category": "Carl Notes",
+				"icon": {
+					"light": "resources/light/refresh.svg",
+					"dark": "resources/dark/refresh.svg"
+				}
+			},
+			{
+				"command": "cnotes.renameNote",
+				"title": "Rename Note",
+				"icon": {
+					"light": "resources/light/rename.svg",
+					"dark": "resources/dark/rename.svg"
+				}
+			},
+			{
+				"command": "cnotes.setupNotes",
+				"title": "Select notes storage location.",
+				"category": "Carl Notes"
+			}
+		],
+		"keybindings": [
+			{
+				"command": "cnotes.listNotes",
+				"key": "alt+l",
+				"mac": "alt+l"
+			},
+			{
+				"command": "cnotes.newNote",
+				"key": "alt+n",
+				"mac": "alt+n"
+			}
+		],
+		"menus": {
+			"view/title": [
+				{
+					"command": "cnotes.refreshNotes",
+					"when": "view == notes",
+					"group": "navigation@1"
+				},
+				{
+					"command": "cnotes.newNote",
+					"when": "view == notes",
+					"group": "navigation@2"
+				}
+			],
+			"view/item/context": [
+				{
+					"command": "cnotes.renameNote",
+					"when": "view == carl-notes && viewItem == note",
+					"group": "inline@1"
+				},
+				{
+					"command": "cnotes.deleteNote",
+					"when": "view == carl-notes && viewItem == note",
+					"group": "inline@2"
+				}
+			]
+		},
+		"viewsContainers": {
+			"activitybar": [
+				{
+					"id": "carl-notes",
+					"title": "Carl Notes",
+					"icon": "resources/notes-light.svg"
+				}
+			]
+		},
+		"views": {
+			"carl-notes": [
+				{
+					"id": "notes",
+					"name": "Notes"
+				}
+			]
+		}
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -p ./",
+		"lint": "eslint src --ext ts",
+		"watch": "tsc -watch -p ./",
+		"pretest": "npm run compile && npm run lint"
+	},
+	"devDependencies": {
+		"@types/eslint": "^6.8.1",
+		"@types/eslint-plugin-prettier": "^3.1.0",
+		"@types/glob": "^7.1.1",
+		"@types/node": "^12.11.7",
+		"@types/npmlog": "^4.1.2",
+		"@types/prettier": "^1.19.1",
+		"@typescript-eslint/eslint-plugin": "^2.18.0",
+		"@typescript-eslint/parser": "^2.18.0",
+		"commitlint": "^8.3.5",
+		"eslint": "^6.8.0",
+		"eslint-config-prettier": "6.10.0",
+		"eslint-plugin-prettier": "^3.1.4",
+		"eslint-plugin-security": "^1.4.0",
+		"glob": "^7.1.6",
+		"husky": "^4.2.3",
+		"lint-staged": "^10.0.7",
+		"prettier": "^1.19.1",
+		"ts-loader": "^6.2.2",
+		"typescript": "^3.7.5",
+		"typesync": "^0.6.1",
+		"vscode-test": "^1.3.0"
+	},
+	"husky": {
+		"hooks": {
+			"pre-commit": "npm run test:unit -- --since master && lint-staged",
+			"commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
+		}
+	},
+	"lint-staged": {
+		"*.{js,ts}": [
+			"eslint --fix",
+			"git add"
+		]
+	},
+	"prettier": {
+		"printWidth": 140,
+		"singleQuote": true,
+		"trailingComma": "all",
+		"arrowParens": "avoid",
+		"bracketSpacing": true
+	},
+	"dependencies": {
+		"vscode": "^1.1.37"
+	}
+}
