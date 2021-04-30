@@ -1,53 +1,56 @@
 import * as vscode from 'vscode';
+import fs from 'fs';
+import path from 'path';
 
 import { NotesProvider } from './providers/notes.provider';
-import { Notes } from './models/notes';
+import { NoteRepository } from './repositories/note.repository';
 import { Note } from './models/note';
 import logger from './logger';
 import { config } from './configuration';
+import commands from './configuration/commands';
+import { NoteFolderRepository } from './repositories/noteFolder.repository';
+import { NoteFolder } from './models/noteFolder';
 
 function registerAllCommands(context: vscode.ExtensionContext, notesTree: NotesProvider) {
-  // delete note
-  const deleteNoteDisposable = vscode.commands.registerCommand('cnotes.deleteNote', (note: Note) => {
-    Notes.deleteNote(note, notesTree);
+  const deleteNoteDisposable = vscode.commands.registerCommand(commands.deleteNote, (note: Note) => {
+    NoteRepository.deleteNote(note, notesTree);
   });
   context.subscriptions.push(deleteNoteDisposable);
 
-  // list notes
-  const listNotesDisposable = vscode.commands.registerCommand('cnotes.listNotes', () => {
-    Notes.listNotes();
+  const listNotesDisposable = vscode.commands.registerCommand(commands.listNotes, () => {
+    NoteRepository.listNotes();
   });
   context.subscriptions.push(listNotesDisposable);
 
-  // new note
-  const newNoteDisposable = vscode.commands.registerCommand('cnotes.newNote', () => {
-    Notes.newNote(notesTree);
+  const newNoteDisposable = vscode.commands.registerCommand(commands.newNote, () => {
+    NoteRepository.newNote(notesTree);
   });
   context.subscriptions.push(newNoteDisposable);
 
-  // open note
-  const openNoteDisposable = vscode.commands.registerCommand('cnotes.openNote', (note: Note) => {
-    Notes.openNote(note);
+  const openNoteDisposable = vscode.commands.registerCommand(commands.openNote, (note: Note) => {
+    NoteRepository.openNote(note);
   });
   context.subscriptions.push(openNoteDisposable);
 
-  // refresh notes
-  const refreshNotesDisposable = vscode.commands.registerCommand('cnotes.refreshNotes', () => {
-    Notes.refreshNotes(notesTree);
+  const refreshNotesDisposable = vscode.commands.registerCommand(commands.refreshNotes, () => {
+    NoteRepository.refreshNotes(notesTree);
   });
   context.subscriptions.push(refreshNotesDisposable);
 
-  // rename note
-  const renameNoteDisposable = vscode.commands.registerCommand('cnotes.renameNote', (note: Note) => {
-    Notes.renameNote(note, notesTree);
+  const renameNoteDisposable = vscode.commands.registerCommand(commands.renameNote, (note: Note) => {
+    NoteRepository.renameNote(note, notesTree);
   });
   context.subscriptions.push(renameNoteDisposable);
 
-  // setup notes
-  const setupNotesDisposable = vscode.commands.registerCommand('cnotes.setupNotes', () => {
-    Notes.setupNotes();
+  const setupNotesDisposable = vscode.commands.registerCommand(commands.setupNotes, () => {
+    NoteRepository.setupNotes();
   });
   context.subscriptions.push(setupNotesDisposable);
+
+  const deleteNoteFolder = vscode.commands.registerCommand(commands.deleteNoteFolder, (noteFolder: NoteFolder) => {
+    NoteFolderRepository.deleteNoteFolder(noteFolder, notesTree);
+  });
+  context.subscriptions.push(deleteNoteFolder);
 }
 
 // this method is called when your extension is activated
@@ -56,12 +59,19 @@ export function activate(context: vscode.ExtensionContext) {
   const { extensionId, extensionName } = config;
 
   logger.info(`"${extensionId}" is now active`);
+  const settingsFile = path.join(context.globalStoragePath, 'NotesLocation.json');
+  if (!fs.existsSync(context.globalStoragePath)) fs.mkdirSync(context.globalStoragePath);
+
+  if (!fs.existsSync(settingsFile)) {
+    fs.writeFileSync(settingsFile, JSON.stringify({}));
+  }
+  const settings = JSON.parse(fs.readFileSync(settingsFile).toString());
 
   // register tree view provider
-  const notesLocations = Notes.getNotesLocations();
+  const notesLocations = NoteRepository.getNotesLocations();
 
   const notesTree = new NotesProvider(notesLocations);
-  vscode.window.registerTreeDataProvider('notes', notesTree.init());
+  vscode.window.registerTreeDataProvider('cnotes', notesTree.init());
 
   // prompt user to select a storage location
   if (!notesLocations || notesLocations?.length < 1) {
@@ -74,7 +84,7 @@ export function activate(context: vscode.ExtensionContext) {
       .then(result => {
         // if the user answers Select
         if (result === 'Select') {
-          Notes.setupNotes();
+          NoteRepository.setupNotes();
         }
       });
     return;

@@ -32,12 +32,17 @@
 	"contributes": {
 		"configuration": {
 			"type": "object",
-			"title": "Configuration",
+			"title": "Carl notes",
 			"properties": {
 				"cnotes.notesLocations": {
 					"type": "array",
 					"default": [],
 					"description": "Storage locations for notes."
+				},
+				"cnotes.defaultFileExtension": {
+					"type": "string",
+					"default": ".md",
+					"description": "Default file extension for your new note when not specified"
 				}
 			}
 		},
@@ -85,6 +90,14 @@
 				"command": "cnotes.setupNotes",
 				"title": "Select notes storage location.",
 				"category": "Carl Notes"
+			},
+			{
+				"command": "cnotes.deleteNoteFolder",
+				"title": "Unlink note folder",
+				"icon": {
+					"light": "resources/light/delete.svg",
+					"dark": "resources/dark/delete.svg"
+				}
 			}
 		],
 		"keybindings": [
@@ -103,25 +116,29 @@
 			"view/title": [
 				{
 					"command": "cnotes.refreshNotes",
-					"when": "view == notes",
+					"when": "view == cnotes",
 					"group": "navigation@1"
 				},
 				{
 					"command": "cnotes.newNote",
-					"when": "view == notes",
+					"when": "view == cnotes",
 					"group": "navigation@2"
 				}
 			],
 			"view/item/context": [
 				{
 					"command": "cnotes.renameNote",
-					"when": "view == carl-notes && viewItem == note",
+					"when": "view == cnotes && viewItem == note",
 					"group": "inline@1"
 				},
 				{
 					"command": "cnotes.deleteNote",
-					"when": "view == carl-notes && viewItem == note",
+					"when": "view == cnotes && viewItem == note",
 					"group": "inline@2"
+				},
+				{
+					"command": "cnotes.deleteNoteFolder",
+					"when": "view == cnotes && viewItem == noteFolder"
 				}
 			]
 		},
@@ -137,7 +154,7 @@
 		"views": {
 			"carl-notes": [
 				{
-					"id": "notes",
+					"id": "cnotes",
 					"name": "Notes"
 				}
 			]
@@ -148,7 +165,8 @@
 		"compile": "tsc -p ./",
 		"lint": "eslint src --ext ts",
 		"watch": "tsc -watch -p ./",
-		"pretest": "npm run compile && npm run lint"
+		"pretest": "npm run compile && npm run lint",
+		"test:unit": "echo \"No tests yet\""
 	},
 	"devDependencies": {
 		"@types/eslint": "^6.8.1",

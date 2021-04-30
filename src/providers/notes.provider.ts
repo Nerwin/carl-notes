@@ -5,12 +5,15 @@ import * as fs from 'fs';
 
 import { Note } from '../models/note';
 import { config } from '../configuration';
+import { NoteFolder } from '../models/noteFolder';
 
-export class NotesProvider implements vscode.TreeDataProvider<Note> {
-  private _onDidChangeTreeData: vscode.EventEmitter<Note | undefined> = new vscode.EventEmitter<Note | undefined>();
-  readonly onDidChangeTreeData: vscode.Event<Note | undefined> = this._onDidChangeTreeData.event;
+export class NotesProvider implements vscode.TreeDataProvider<NoteFolder | Note> {
+  private _onDidChangeTreeData: vscode.EventEmitter<NoteFolder | Note | undefined> = new vscode.EventEmitter<
+    NoteFolder | Note | undefined
+  >();
+  readonly onDidChangeTreeData: vscode.Event<NoteFolder | Note | undefined> = this._onDidChangeTreeData.event;
 
-  // assign notes location passed to NotesProvider
+  // assign notes location passed to NoteFoldersProvider
   constructor(private notesLocations: string[]) {}
 
   public init(): NotesProvider {
@@ -24,59 +27,69 @@ export class NotesProvider implements vscode.TreeDataProvider<Note> {
   }
 
   // get TreeItem representation of a note
-  getTreeItem(note: Note): vscode.TreeItem {
-    return note;
+  getTreeItem(noteFolder: NoteFolder): vscode.TreeItem {
+    return noteFolder;
   }
 
   // get children from notes location
-  getChildren(note?: Note): Thenable<Note[]> {
+  async getChildren(noteFolder?: NoteFolder): Promise<NoteFolder[] | Note[]> {
     // if tree provider wasn't given a notes location to check
     if (!this.notesLocations) {
-      return Promise.resolve([]);
+      return [];
     }
     // if we get a note return resolved promise
-    if (note) {
-      return Promise.resolve([]);
+    if (noteFolder) {
+      return noteFolder.notes;
     }
     // else return list of notes in notes location
     else {
-      return Promise.resolve(this.getNotes(this.notesLocations));
+      return this.getNoteFolders(this.notesLocations);
     }
   }
 
   // get Notes from notes location
-  getNotes(notesLocations: string[]): Note[] {
+  getNoteFolders(notesLocations: string[]): NoteFolder[] {
     return notesLocations.flatMap(notesLocation => {
       if (!this.pathExists(notesLocation)) return [];
 
-      const listOfNotes = (note: string): Note => {
-        // return a Note, when a note is clicked on in the view, perform a command
-        return new Note(path.basename(note), notesLocation, vscode.TreeItemCollapsibleState.None, {
-          command: 'cnotes.openNote',
-          title: '',
-          arguments: [note],
-        });
-      };
+      const notes = this.getNotes(notesLocation);
 
-      const notes = config.allowedFileExtensions.flatMap(fileExtension => {
-        return gl.sync(`*.${fileExtension}`, { cwd: notesLocation, nodir: true, nocase: true }).map(listOfNotes);
-      });
+      return new NoteFolder(path.basename(notesLocation), notesLocation, vscode.TreeItemCollapsibleState.Collapsed, notes);
 
-      return notes;
+      // const notes = config.allowedFileExtensions.flatMap(fileExtension => {
+      //   return gl.sync(`*.${fileExtension}`, { cwd: notesLocation, nodir: true, nocase: true }).map(listOfNotes);
+      // });
+
+      // return notes;
     });
   }
 
-  // check to see if the given path exists in the file system
-  private pathExists(p: string): boolean {
-    // try accessing the given location
+  // get Notes from notes location
+  getNotes(notesLocation: string): Note[] {
+    if (!this.pathExists(notesLocation)) return [];
+
+    const listOfNotes = (note: string): Note => {
+      // return a Note, when a note is clicked on in the view, perform a command
+      return new Note(path.basename(note), notesLocation, {
+        command: 'cnotes.openNote',
+        title: '',
+        arguments: [note],
+      });
+    };
+
+    const notes = config.allowedFileExtensions.flatMap(fileExtension => {
+      return gl.sync(`*.${fileExtension}`, { cwd: notesLocation, nodir: true, nocase: true }).map(listOfNotes);
+    });
+
+    return notes;
+  }
+
+  private pathExists(path: string): boolean {
     try {
-      fs.accessSync(p);
-      // error if we can't access given location
+      fs.accessSync(path);
+      return true;
     } catch (err) {
-      // return false if location does not exist
       return false;
     }
-    // return true if location exists
-    return true;
   }
 }
