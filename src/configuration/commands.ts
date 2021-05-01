@@ -1,10 +1,13 @@
 export default {
-  deleteNote: 'cnotes.deleteNote',
   listNotes: 'cnotes.listNotes',
+  refreshNoteFolders: 'cnotes.refreshNoteFolders',
+
+  deleteNote: 'cnotes.deleteNote',
   newNote: 'cnotes.newNote',
   openNote: 'cnotes.openNote',
-  refreshNotes: 'cnotes.refreshNotes',
   renameNote: 'cnotes.renameNote',
-  setupNotes: 'cnotes.setupNotes',
-  deleteNoteFolder: 'cnotes.deleteNoteFolder',
+
+  unlinkNoteFolder: 'cnotes.unlinkNoteFolder',
+  linkNoteFolder: 'cnotes.linkNoteFolder',
+  openNoteFolder: 'cnotes.openNoteFolder',
 };

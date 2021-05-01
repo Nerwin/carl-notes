@@ -1,11 +1,18 @@
-import * as fs from 'fs';
-import * as path from 'path';
+import { promisify } from 'util';
 import * as vscode from 'vscode';
+import * as path from 'path';
+import * as gl from 'glob';
+import * as fs from 'fs';
 
-import { NotesProvider } from '../providers/notes.provider';
-import { config } from '../configuration';
+import { config, getNoteFolderLocations, getDefaultFileExtension, getAllowedFileExtensions } from '../configuration';
+import { NoteFolderProvider } from '../providers/noteFolder.provider';
+import { NoteFolderRepository } from './noteFolder.repository';
+import { NoteFolder } from '../models/noteFolder';
+import commands from '../configuration/commands';
 import { Note } from '../models/note';
+import logger from '../logger';
 
+const unlinkAsync = promisify(fs.unlink);
 const fileExtensionRegex = /(\..{2,8}$)/gm;
 
 export class NoteRepository {
@@ -13,66 +20,68 @@ export class NoteRepository {
     this.settings = vscode.workspace.getConfiguration(config.extensionId);
   }
 
-  // get notes storage location
-  static getNotesLocations(): string[] {
-    return vscode.workspace.getConfiguration(config.extensionShortName).get<string[]>('notesLocations') ?? [];
+  static async deleteNote(note: Note, tree: NoteFolderProvider): Promise<void> {
+    const answer = await vscode.window.showWarningMessage(
+      `Are you sure you want to delete '${note.name}'? This action is permanent and can not be reversed`,
+      'Yes',
+      'No',
+    );
+
+    if (answer === 'Yes') {
+      try {
+        await unlinkAsync(note.location);
+        vscode.window.showInformationMessage(`Successfully deleted ${note.name}`);
+        tree.refresh();
+      } catch (err) {
+        logger.error(err);
+        vscode.window.showErrorMessage(`Failed to delete ${note.name}`);
+      }
+    }
   }
 
-  static getDefaultFileExtension(): string {
-    return vscode.workspace.getConfiguration(config.extensionShortName).get<string>('defaultFileExtension') || '.md';
-  }
-
-  // delete note
-  static deleteNote(note: Note, tree: NotesProvider): void {
-    // prompt user for confirmation
-    vscode.window
-      .showWarningMessage(`Are you sure you want to delete '${note.name}'? This action is permanent and can not be reversed.`, 'Yes', 'No')
-      .then(result => {
-        // if the user answers Yes
-        if (result === 'Yes') {
-          // try to delete the note
-          fs.unlink(path.join(String(note.location), String(note.name)), err => {
-            // if there was an error deleting the note
-            if (err) {
-              // report error
-              console.error(err);
-              return vscode.window.showErrorMessage(`Failed to delete ${note.name}.`);
-            }
-            // else let the user know the file was deleted successfully
-            return vscode.window.showInformationMessage(`Successfully deleted ${note.name}.`);
-          });
-          // refresh tree after deleting note
-          tree.refresh();
-        }
-      });
-  }
-
-  // list notes
   static listNotes(): void {
-    const notesLocations = NoteRepository.getNotesLocations();
+    const noteFolderLocations = getNoteFolderLocations();
 
-    notesLocations.forEach(notesLocation => {
-      // read files in storage location
-      fs.readdir(String(notesLocation), (err, files) => {
-        if (err) {
-          // report error
-          console.error(err);
-          return vscode.window.showErrorMessage('Failed to read the notes folder.');
-        } else {
-          // show list of notes
-          return vscode.window.showQuickPick(files).then(file => {
-            // open selected note
-            vscode.window.showTextDocument(vscode.Uri.file(path.join(String(notesLocation), String(file))));
-          });
-        }
-      });
+    const notesLocations = NoteFolderRepository.getNoteFolders(noteFolderLocations).flatMap(noteFolder => {
+      return noteFolder.notes.map(n => n.location);
+    });
+
+    vscode.window.showQuickPick(notesLocations).then(noteLocation => {
+      vscode.window.showTextDocument(vscode.Uri.file(noteLocation!));
     });
   }
 
-  // new note
-  static async newNote(tree: NotesProvider) {
-    // TODO: Change to have default folder in config
-    const notesLocation = String(this.getNotesLocations()[0]);
+  static getNotes(noteFolderLocation: string): Note[] {
+    if (!this._pathExists(noteFolderLocation)) return [];
+
+    const listOfNotes = (noteName: string): Note => {
+      const noteLocation = path.join(noteFolderLocation, noteName);
+      return new Note(noteName, noteLocation, {
+        title: '',
+        command: commands.openNote,
+        arguments: [noteLocation],
+      });
+    };
+
+    const notes = getAllowedFileExtensions().flatMap(fileExtension => {
+      return gl.sync(`*.${fileExtension}`, { cwd: noteFolderLocation, nodir: true, nocase: true }).map(listOfNotes);
+    });
+
+    return notes;
+  }
+
+  static async newNote(noteFolder: NoteFolder, tree: NoteFolderProvider) {
+    if (!noteFolder) {
+      const noteFolderLocations = getNoteFolderLocations();
+
+      const folderLocation = await vscode.window.showQuickPick(noteFolderLocations, {
+        canPickMany: false,
+        placeHolder: 'Select the storage location for the new note',
+      });
+      if (!folderLocation) return;
+
+      noteFolder = { location: folderLocation } as NoteFolder;
+    }
 
     const noteName = await vscode.window.showInputBox({
       prompt: 'Note name?',
@@ -80,94 +89,74 @@ export class NoteRepository {
     });
 
     noteName?.trim();
-    if (!noteName) return vscode.window.showErrorMessage('Invalid name');
+    if (!noteName) return;
 
+    const noteFolderLocation = noteFolder.location;
     const hasExtension = noteName.match(fileExtensionRegex);
-    const fileName = hasExtension ? noteName : `${noteName}${this.getDefaultFileExtension()}`;
-    const filePath: string = path.join(String(notesLocation), `${fileName.replace(/\:/gi, '')}`);
+    const fileName = hasExtension ? noteName : `${noteName}.${getDefaultFileExtension()}`;
+    const filePath: string = path.join(noteFolderLocation, `${fileName.replace(/\:/gi, '')}`);
 
     const noteExists = fs.existsSync(filePath);
-    if (noteExists) return vscode.window.showWarningMessage('A note with that name already exists.');
+    if (noteExists) vscode.window.showWarningMessage('A note with that name already exists');
 
     fs.writeFile(filePath, '', err => {
       if (err) {
-        console.error(err);
-        return vscode.window.showErrorMessage('Failed to create the new note.');
-      } else {
-        const file = vscode.Uri.file(filePath);
-        return vscode.window.showTextDocument(file).then(() => {
-          vscode.commands.executeCommand('cursorMove', { to: 'viewPortBottom' });
-        });
+        logger.error(err);
+        return vscode.window.showErrorMessage('Failed to create the new note');
       }
+
+      const file = vscode.Uri.file(filePath);
+      vscode.window.showTextDocument(file).then(() => {
+        vscode.commands.executeCommand('cursorMove', { to: 'viewPortBottom' });
+      });
+      return tree.refresh();
     });
+  }
+
+  static async openNote(noteLocation: string) {
+    try {
+      await vscode.window.showTextDocument(vscode.Uri.file(noteLocation));
+    } catch (err) {
+      logger.error(err);
+    }
+  }
+
+  static refreshNoteFolders(tree: NoteFolderProvider): void {
     tree.refresh();
   }
 
-  static openNote(note: Note): void {
-    // TODO: Change to have the current folder location
-    const notesLocation = String(NoteRepository.getNotesLocations()[0]);
-    vscode.window.showTextDocument(vscode.Uri.file(path.join(String(notesLocation), String(note))));
-  }
-
-  static refreshNotes(tree: NotesProvider): void {
-    tree.refresh();
-  }
-
-  static async renameNote(note: Note, tree: NotesProvider) {
-    const noteName = await vscode.window.showInputBox({
+  static async renameNote(note: Note, tree: NoteFolderProvider) {
+    const newNoteName = await vscode.window.showInputBox({
       prompt: 'New note name?',
       value: note.name,
     });
 
-    noteName?.trim();
-    if (!noteName || noteName === note.name) {
+    newNoteName?.trim();
+    if (!newNoteName || newNoteName === note.name) {
       return;
     }
 
-    // TODO: validate file extension or add one
-    const newNoteName = noteName;
+    try {
+      const newNotePath = path.join(path.dirname(note.location), newNoteName);
+      if (fs.existsSync(newNotePath)) {
+        return vscode.window.showWarningMessage(`'${newNoteName}' already exists.`);
+      }
 
-    // check for existing note with the same name
-    const newNotePath = path.join(note.location, newNoteName);
-    if (fs.existsSync(newNotePath)) {
-      return vscode.window.showWarningMessage(`'${newNoteName}' already exists.`);
+      fs.renameSync(note.location, newNotePath);
+      vscode.window.showInformationMessage(`'${note.name}' renamed to '${newNoteName}'.`);
+
+      return tree.refresh();
+    } catch (err) {
+      logger.error(err);
     }
-
-    vscode.window.showInformationMessage(`'${note.name}' renamed to '${newNoteName}'.`);
-    fs.renameSync(path.join(note.location, note.name), newNotePath);
-
-    tree.refresh();
-    return;
   }
 
-  // setup notes
-  static setupNotes(): void {
-    // dialog options
-    const openDialogOptions: vscode.OpenDialogOptions = {
-      canSelectFiles: false,
-      canSelectFolders: true,
-      canSelectMany: false,
-      openLabel: 'Select',
-    };
-
-    // display open dialog with above options
-    vscode.window.showOpenDialog(openDialogOptions).then(fileUri => {
-      if (fileUri && fileUri[0]) {
-        // get Notes configuration
-        const notesConfiguration = vscode.workspace.getConfiguration('Notes');
-        // update Notes configuration with selected location
-        notesConfiguration.update('notesLocation', path.normalize(fileUri[0].fsPath), true).then(() => {
-          // prompt to reload window so storage location change can take effect
-          vscode.window
-            .showWarningMessage('You must reload the window for the storage location change to take effect.', 'Reload')
-            .then(selectedAction => {
-              // if the user selected to reload the window then reload
-              if (selectedAction === 'Reload') {
-                vscode.commands.executeCommand('workbench.action.reloadWindow');
-              }
-            });
-        });
-      }
-    });
+  private static _pathExists(path: string): boolean {
+    try {
+      fs.accessSync(path);
+      return true;
+    } catch (err) {
+      return false;
+    }
   }
 }

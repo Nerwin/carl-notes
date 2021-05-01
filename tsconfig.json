@@ -1,19 +1,18 @@
 {
 	"compilerOptions": {
-		"module": "commonjs",
 		"target": "ES2020",
-		"outDir": "out",
 		"lib": [
 			"ES2020"
 		],
-		"esModuleInterop": true,
-		"sourceMap": true,
+		"module": "commonjs",
 		"rootDir": "src",
-		"strict": true,
-		"noImplicitReturns": true,
+		"outDir": "out",
+		"esModuleInterop": true,
 		"removeComments": true,
+		"sourceMap": true,
+		"strict": true
 	},
 	"exclude": [
-		"node_modules",
+		"node_modules"
 	]
 }
